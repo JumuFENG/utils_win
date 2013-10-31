@@ -341,7 +341,7 @@ namespace helper{
 			std::string strPath;
 #if defined(UNICODE) || defined(_UNICODE)
 			std::wstring strPathW = szPath;
-			strPath = charset::unicode_to_utf8(strPathW);
+			strPath = charset::wstring_to_string(strPathW);
 #else
 			strPath = szPath;
 #endif
@@ -368,7 +368,7 @@ namespace helper{
 			if (GetModuleFileName(module_handle, path_buffer, MAX_PATH) != 0)
 			{
 #if defined(UNICODE)||defined(_UNICODE)
-				result = charset::unicode_to_utf8(path_buffer);
+				result = charset::wstring_to_string(path_buffer);
 #else
 				result = path_buffer;
 #endif
@@ -404,7 +404,7 @@ namespace helper{
 			if (num_error == 0)
 				return "";
 #if defined(UNICODE)||defined(_UNICODE)
-			return charset::unicode_to_utf8(buffer);
+			return charset::wstring_to_string(buffer);
 #else
 			return buffer;
 #endif
@@ -443,8 +443,8 @@ namespace helper{
 				const std::string _part_dir = _folder.substr(0, _idx);
 				if (_part_dir.length() > 0 && !is_path_exist(_part_dir))
 				{
-#if defined(UNICODE)}}defined(_UNICODE)
-					if (!::CreateDirectory(charset::utf8_to_unicode(_part_dir).c_str(),NULL))
+#if defined(UNICODE) || defined(_UNICODE)
+					if (!::CreateDirectory(charset::string_to_wstring(_part_dir).c_str(),NULL))
 						return false;
 #else
 					if (!::CreateDirectory(_part_dir.c_str(), NULL))
@@ -461,7 +461,7 @@ namespace helper{
 		inline bool delete_file(const std::string& _path)
 		{
 #if defined(UNICODE)}}defined(_UNICODE)
-			return ::DeleteFile(charset::utf8_to_unicode(_path).c_str());
+			return ::DeleteFile(charset::string_to_wstring(_path).c_str());
 #else
 			return ::DeleteFile(_path.c_str());
 #endif
@@ -474,10 +474,10 @@ namespace helper{
 			if (::GetLastError() != ERROR_ACCESS_DENIED)
 				return false;
 #if defined(UNICODE)||defined(_UNICODE)
-			const unsigned long _attr = ::GetFileAttributes(charset::utf8_to_unicode(_path).c_str());
+			const unsigned long _attr = ::GetFileAttributes(charset::string_to_wstring(_path).c_str());
 			if ((_attr & FILE_ATTRIBUTE_READONLY) == 0)
 				return false;
-			if (!::SetFileAttributes(charset::utf8_to_unicode(_path).c_str(), _attr & ~FILE_ATTRIBUTE_READONLY))
+			if (!::SetFileAttributes(charset::string_to_wstring(_path).c_str(), _attr & ~FILE_ATTRIBUTE_READONLY))
 				return false;
 #else
 			const unsigned long _attr = ::GetFileAttributes(_path.c_str());
@@ -492,7 +492,7 @@ namespace helper{
 		inline bool remove_blank_directoy(std::string blk_dir)
 		{
 #if defined(UNICODE)||defined(_UNICODE)
-			return ::RemoveDirectory(charset::utf8_to_unicode(blk_dir).c_str());
+			return ::RemoveDirectory(charset::string_to_wstring(blk_dir).c_str());
 #else
 			return ::RemoveDirectory(blk_dir.c_str());
 #endif
@@ -507,10 +507,10 @@ namespace helper{
 			if (::GetLastError() != ERROR_ACCESS_DENIED)
 				return false;
 #if defined(UNICODE)||defined(_UNICODE)
-			const unsigned long _attr = ::GetFileAttributes(charset::utf8_to_unicode(blk_dir).c_str());
+			const unsigned long _attr = ::GetFileAttributes(charset::string_to_wstring(blk_dir).c_str());
 			if ((_attr & FILE_ATTRIBUTE_READONLY) == 0)
 				return false;
-			if (!::SetFileAttributes(charset::utf8_to_unicode(blk_dir).c_str(), _attr & ~FILE_ATTRIBUTE_READONLY))
+			if (!::SetFileAttributes(charset::string_to_wstring(blk_dir).c_str(), _attr & ~FILE_ATTRIBUTE_READONLY))
 				return false;
 #else
 			const unsigned long _attr = ::GetFileAttributes(blk_dir.c_str());
@@ -586,8 +586,8 @@ namespace helper{
 					create_folder(dstdir);
 			}
 #if defined(UNICODE)||defined(_UNICODE)
-			return ::CopyFile(charset::utf8_to_unicode(from).c_str(), 
-				charset::utf8_to_unicode(to).c_str(), FALSE);
+			return ::CopyFile(charset::string_to_wstring(from).c_str(), 
+				charset::string_to_wstring(to).c_str(), FALSE);
 #else
 			return ::CopyFile(from.c_str(), to.c_str(), FALSE);
 #endif
@@ -596,7 +596,7 @@ namespace helper{
 		inline bool delete_when_reboot(const std::string& file_)
 		{
 #if defined(UNICODE)||defined(_UNICODE)
-			return ::MoveFileEx(charset::utf8_to_unicode(file_).c_str(), NULL, MOVEFILE_DELAY_UNTIL_REBOOT);
+			return ::MoveFileEx(charset::string_to_wstring(file_).c_str(), NULL, MOVEFILE_DELAY_UNTIL_REBOOT);
 #else
 			return ::MoveFileEx(file_.c_str(), NULL, MOVEFILE_DELAY_UNTIL_REBOOT);
 #endif
@@ -609,7 +609,7 @@ namespace helper{
 		inline HANDLE create_global_mutex(const std::string arg_name)
 		{
 #if defined(UNICODE)||defined(_UNICODE)
-			const std::wstring _full_name =  L"Global\\" + charset::utf8_to_unicode(arg_name);
+			const std::wstring _full_name =  L"Global\\" + charset::string_to_wstring(arg_name);
 			return ::CreateMutex(NULL, TRUE, _full_name.c_str());
 #else
 			const std::string _full_name_a = "Global\\" + arg_name;
@@ -674,8 +674,8 @@ namespace helper{
 		{
 			LPCTSTR lpstr_subkey,lpstr_name;
 #if defined(UNICODE) || defined(_UNICODE)
-			lpstr_subkey = (LPCTSTR)(charset::utf8_to_unicode(sub_key)).c_str();
-			lpstr_name = (LPCTSTR)(charset::utf8_to_unicode(name)).c_str();
+			lpstr_subkey = (LPCTSTR)(charset::string_to_wstring(sub_key)).c_str();
+			lpstr_name = (LPCTSTR)(charset::string_to_wstring(name)).c_str();
 #else
 			lpstr_subkey = (LPCTSTR)sub_key.c_str();
 			lpstr_name = (LPCTSTR)name.c_str();
@@ -688,8 +688,8 @@ namespace helper{
 		{
 			LPCTSTR lpstr_subkey,lpstr_name;
 #if defined(UNICODE) || defined(_UNICODE)
-			lpstr_subkey = (LPCTSTR)(charset::utf8_to_unicode(sub_key)).c_str();
-			lpstr_name = (LPCTSTR)(charset::utf8_to_unicode(name)).c_str();
+			lpstr_subkey = (LPCTSTR)(charset::string_to_wstring(sub_key)).c_str();
+			lpstr_name = (LPCTSTR)(charset::string_to_wstring(name)).c_str();
 #else
 			lpstr_subkey = (LPCTSTR)sub_key.c_str();
 			lpstr_name = (LPCTSTR)name.c_str();
