@@ -1,4 +1,7 @@
-#include <string>
+#ifndef _HELPER_MY_WINHELPER_H
+#define _HELPER_MY_WINHELPER_H
+
+#include "tstring.h"
 #include <io.h>
 #include <Windows.h>
 #include <Wtsapi32.h>
@@ -8,9 +11,64 @@
 #pragma comment(lib, "Psapi.lib")
 #include <locale.h>
 #include "iconv.h"
+#include <algorithm>
 
 //本文件所有接口函数均采用string不使用wstring。即使内部采用wstring，也进行转换之后输出
 namespace helper{
+    namespace basic{
+        inline int version_compare(const std::string& v1, const string& v2)
+        {
+            if (v1 == v2)
+            {
+                return 0;
+            }
+
+            bool bV1Less = false;
+            using std::string;
+            string::size_type v1Start = string::npos, v2Start = string::npos;
+            string::size_type v1End = string::npos, v2End = string::npos;
+            do 
+            {
+                v1Start = v1End + 1;
+                v2Start = v2End + 1;
+
+                v1End = v1.find_first_of('.', v1Start);
+                if (v1End == string::npos)
+                {
+                    v1End = v1.length();
+                }
+                v2End = v2.find_first_of('.', v2Start);
+                if (v2End == string::npos)
+                {
+                    v2End = v2.length();
+                }
+
+                int verA = 0, verB = 0;
+                if (v1End > v1Start)
+                {
+                    verA = atoi(v1.substr(v1Start, v1End - v1Start).c_str());
+                }
+                if (v2End > v2Start)
+                {
+                    verB = atoi(v2.substr(v2Start, v2End - v2Start).c_str());
+                }
+
+                if (verA != verB)
+                {
+                    bV1Less = (verA < verB);
+                    break;
+                }
+
+                if (v1End == v1.length() && v2End == v2.length())
+                {
+                    return 0;
+                }
+            } while (v1End < v1.length() || v2End < v2.length());
+
+            return bV1Less ? -1 : 1;
+        }
+    }
+
 	namespace base64{
 		static const std::string base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
@@ -113,7 +171,7 @@ namespace helper{
 
 	namespace charset{//#include <boost/locale/encoding.hpp>
 		//boost库中有相关功能，可研究，下面的代码可以实现转换，但使用了windows API
-		std::wstring string_to_wstring(std::string const& inStr)
+		inline std::wstring string_to_wstring(std::string const& inStr)
 		{
 			int slen = strlen(inStr.c_str());
 			int len = MultiByteToWideChar(CP_ACP,0,inStr.c_str(),slen,NULL,0);
@@ -125,7 +183,7 @@ namespace helper{
 			return rWstr;
 		}
 
-		std::string wstring_to_string(std::wstring const& inWstr)//
+		inline std::string wstring_to_string(std::wstring const& inWstr)//
 		{
 			int wslen = wcslen(inWstr.c_str());
 			int len= WideCharToMultiByte(CP_ACP,0,inWstr.c_str(),wslen,NULL,0,NULL,NULL);  
@@ -137,8 +195,9 @@ namespace helper{
 			return rStr;
 		}
 
-		std::wstring iconv_string_to_wstring(const std::string& szFrom )
+		inline std::wstring iconv_string_to_wstring(const std::string& szFrom )
 		{
+#ifdef USE_STRING_ICONV
 			size_t from_len = szFrom.length();
 			wchar_t*  wszTo = new wchar_t[from_len+1]; 
 			const char* pszFrom = (const char*)(szFrom.c_str());  
@@ -154,10 +213,14 @@ namespace helper{
 			delete[] wszTo;
 			wszTo = NULL;
 			return rWstr;
+#else
+            return string_to_wstring(szFrom);
+#endif
 		}
 
-		std::string iconv_wstring_to_string(const std::wstring& wszFrom )
+		inline std::string iconv_wstring_to_string(const std::wstring& wszFrom )
 		{
+#ifdef USE_STRING_ICONV
 			size_t from_len = wszFrom.length() * sizeof(wchar_t);  //传入字符串的字节数
 			char*  szTo = new char[from_len+1]; 
 			const char* pwszFrom = (const char*)(wszFrom.c_str());  
@@ -172,13 +235,16 @@ namespace helper{
 			delete[] szTo;
 			szTo = NULL;
 			return rStr;
+#else
+            return wstring_to_string(wszFrom);
+#endif
 		}
 	}
 
 	namespace os_util{
 		//系统相关，主要用于windows系统，获取操作系统相关信息、常用文件夹等
 		typedef BOOL (WINAPI *LPFN_ISWOW64PROCESS) (HANDLE, PBOOL);
-		bool is_64os(HANDLE hProc=NULL)
+		inline bool is_64os(HANDLE hProc=NULL)
 		{
 			BOOL bIsWow64 = FALSE;
 			LPFN_ISWOW64PROCESS fnIsWow64Process = (LPFN_ISWOW64PROCESS)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "IsWow64Process");
@@ -209,7 +275,7 @@ namespace helper{
 		}
 
 		// 提升进程权限
-		BOOL StartElevatedProcess(LPCTSTR szPrivName)
+		inline BOOL StartElevatedProcess(LPCTSTR szPrivName)
 		{
 			HANDLE hToken;
 			TOKEN_PRIVILEGES tp;
@@ -241,7 +307,7 @@ namespace helper{
 		}
 
 		// 提升用户权限,来自sockmon，可能是以管理员权限运行的代码
-		DWORD ElevatedProcess(LPCTSTR szExecutable, LPCTSTR szCmdLine)
+		inline DWORD ElevatedProcess(LPCTSTR szExecutable, LPCTSTR szCmdLine)
 		{
 			SHELLEXECUTEINFO sei = {sizeof(SHELLEXECUTEINFO)};
 
@@ -341,7 +407,7 @@ namespace helper{
 			std::string strPath;
 #if defined(UNICODE) || defined(_UNICODE)
 			std::wstring strPathW = szPath;
-			strPath = charset::unicode_to_utf8(strPathW);
+			strPath = charset::wstring_to_string(strPathW);
 #else
 			strPath = szPath;
 #endif
@@ -368,7 +434,7 @@ namespace helper{
 			if (GetModuleFileName(module_handle, path_buffer, MAX_PATH) != 0)
 			{
 #if defined(UNICODE)||defined(_UNICODE)
-				result = charset::unicode_to_utf8(path_buffer);
+				result = charset::wstring_to_string(path_buffer);
 #else
 				result = path_buffer;
 #endif
@@ -404,7 +470,7 @@ namespace helper{
 			if (num_error == 0)
 				return "";
 #if defined(UNICODE)||defined(_UNICODE)
-			return charset::unicode_to_utf8(buffer);
+			return charset::wstring_to_string(buffer);
 #else
 			return buffer;
 #endif
@@ -443,8 +509,8 @@ namespace helper{
 				const std::string _part_dir = _folder.substr(0, _idx);
 				if (_part_dir.length() > 0 && !is_path_exist(_part_dir))
 				{
-#if defined(UNICODE)}}defined(_UNICODE)
-					if (!::CreateDirectory(charset::utf8_to_unicode(_part_dir).c_str(),NULL))
+#if defined(UNICODE) || defined(_UNICODE) 
+					if (!::CreateDirectory(charset::string_to_wstring(_part_dir).c_str(),NULL))
 						return false;
 #else
 					if (!::CreateDirectory(_part_dir.c_str(), NULL))
@@ -458,10 +524,10 @@ namespace helper{
 			return true;
 		}
 
-		inline bool delete_file(const std::string& _path)
+		inline BOOL delete_file(const std::string& _path)
 		{
-#if defined(UNICODE)}}defined(_UNICODE)
-			return ::DeleteFile(charset::utf8_to_unicode(_path).c_str());
+#if defined(UNICODE)||defined(_UNICODE)
+			return ::DeleteFile(charset::string_to_wstring(_path).c_str());
 #else
 			return ::DeleteFile(_path.c_str());
 #endif
@@ -474,10 +540,10 @@ namespace helper{
 			if (::GetLastError() != ERROR_ACCESS_DENIED)
 				return false;
 #if defined(UNICODE)||defined(_UNICODE)
-			const unsigned long _attr = ::GetFileAttributes(charset::utf8_to_unicode(_path).c_str());
+			const unsigned long _attr = ::GetFileAttributes(charset::string_to_wstring(_path).c_str());
 			if ((_attr & FILE_ATTRIBUTE_READONLY) == 0)
 				return false;
-			if (!::SetFileAttributes(charset::utf8_to_unicode(_path).c_str(), _attr & ~FILE_ATTRIBUTE_READONLY))
+			if (!::SetFileAttributes(charset::string_to_wstring(_path).c_str(), _attr & ~FILE_ATTRIBUTE_READONLY))
 				return false;
 #else
 			const unsigned long _attr = ::GetFileAttributes(_path.c_str());
@@ -486,13 +552,13 @@ namespace helper{
 			if (!::SetFileAttributes(_path.c_str(), _attr & ~FILE_ATTRIBUTE_READONLY))
 				return false;
 #endif
-			return delete_file(_path);
+			return (bool)delete_file(_path);
 		}
 
-		inline bool remove_blank_directoy(std::string blk_dir)
+		inline BOOL remove_blank_directoy(std::string blk_dir)
 		{
 #if defined(UNICODE)||defined(_UNICODE)
-			return ::RemoveDirectory(charset::utf8_to_unicode(blk_dir).c_str());
+			return ::RemoveDirectory(charset::string_to_wstring(blk_dir).c_str());
 #else
 			return ::RemoveDirectory(blk_dir.c_str());
 #endif
@@ -507,10 +573,10 @@ namespace helper{
 			if (::GetLastError() != ERROR_ACCESS_DENIED)
 				return false;
 #if defined(UNICODE)||defined(_UNICODE)
-			const unsigned long _attr = ::GetFileAttributes(charset::utf8_to_unicode(blk_dir).c_str());
+			const unsigned long _attr = ::GetFileAttributes(charset::string_to_wstring(blk_dir).c_str());
 			if ((_attr & FILE_ATTRIBUTE_READONLY) == 0)
 				return false;
-			if (!::SetFileAttributes(charset::utf8_to_unicode(blk_dir).c_str(), _attr & ~FILE_ATTRIBUTE_READONLY))
+			if (!::SetFileAttributes(charset::string_to_wstring(blk_dir).c_str(), _attr & ~FILE_ATTRIBUTE_READONLY))
 				return false;
 #else
 			const unsigned long _attr = ::GetFileAttributes(blk_dir.c_str());
@@ -519,7 +585,7 @@ namespace helper{
 			if (!::SetFileAttributes(blk_dir.c_str(), _attr & ~FILE_ATTRIBUTE_READONLY))
 				return false;
 #endif
-			return remove_blank_directoy(blk_dir);
+			return (bool)remove_blank_directoy(blk_dir);
 		}
 
 		inline bool delete_folder(const std::string& _dir)
@@ -543,7 +609,7 @@ namespace helper{
 					}
 				} while (_findnext(n, &p) == 0);
 				_findclose(n);
-				return remove_blank_directoy(_dir);
+				return (bool)remove_blank_directoy(_dir);
 			}
 		}
 
@@ -577,7 +643,7 @@ namespace helper{
 		}
 
 		//如果目标文件已经存在，则覆盖之
-		inline bool copy_file_ex(const std::string& from, const std::string& to)
+		inline BOOL copy_file_ex(const std::string& from, const std::string& to)
 		{
 			if (to.rfind("\\")!=-1)
 			{
@@ -586,17 +652,17 @@ namespace helper{
 					create_folder(dstdir);
 			}
 #if defined(UNICODE)||defined(_UNICODE)
-			return ::CopyFile(charset::utf8_to_unicode(from).c_str(), 
-				charset::utf8_to_unicode(to).c_str(), FALSE);
+			return ::CopyFile(charset::string_to_wstring(from).c_str(), 
+				charset::string_to_wstring(to).c_str(), FALSE);
 #else
 			return ::CopyFile(from.c_str(), to.c_str(), FALSE);
 #endif
 		}
 
-		inline bool delete_when_reboot(const std::string& file_)
+		inline BOOL delete_when_reboot(const std::string& file_)
 		{
 #if defined(UNICODE)||defined(_UNICODE)
-			return ::MoveFileEx(charset::utf8_to_unicode(file_).c_str(), NULL, MOVEFILE_DELAY_UNTIL_REBOOT);
+			return ::MoveFileEx(charset::string_to_wstring(file_).c_str(), NULL, MOVEFILE_DELAY_UNTIL_REBOOT);
 #else
 			return ::MoveFileEx(file_.c_str(), NULL, MOVEFILE_DELAY_UNTIL_REBOOT);
 #endif
@@ -609,7 +675,7 @@ namespace helper{
 		inline HANDLE create_global_mutex(const std::string arg_name)
 		{
 #if defined(UNICODE)||defined(_UNICODE)
-			const std::wstring _full_name =  L"Global\\" + charset::utf8_to_unicode(arg_name);
+			const std::wstring _full_name =  L"Global\\" + charset::string_to_wstring(arg_name);
 			return ::CreateMutex(NULL, TRUE, _full_name.c_str());
 #else
 			const std::string _full_name_a = "Global\\" + arg_name;
@@ -624,19 +690,20 @@ namespace helper{
 			return false;
 		}
 
-		inline bool createprocess_inherithandles(const std::string& cmd, DWORD* p_thread_id = NULL, bool show = false)
+		inline bool createprocess_inherithandles(const tstring& cmd, DWORD* p_thread_id = NULL, bool show = false)
 		{
-			char command_buffer[512] = {0};
-			strcpy_s(command_buffer, 512, cmd.c_str());
-			STARTUPINFOA startup_info = {0};
-			startup_info.cb = sizeof(STARTUPINFOA);
+			TCHAR command_buffer[512] = {0};
+			_tcscpy_s(command_buffer, 512, cmd.c_str());
+			STARTUPINFO startup_info = {0};
+			startup_info.cb = sizeof(STARTUPINFO);
 			startup_info.dwFlags = STARTF_USESHOWWINDOW;
 			if (show)
 				startup_info.wShowWindow = SW_SHOW;
 			else
 				startup_info.wShowWindow = SW_HIDE;
 			PROCESS_INFORMATION process_information = {0};
-			if (!CreateProcessA(NULL, command_buffer, NULL, NULL, TRUE, NORMAL_PRIORITY_CLASS, 0, 0, &startup_info, &process_information))
+			if (!CreateProcess(NULL, command_buffer, NULL, NULL,
+                TRUE, NORMAL_PRIORITY_CLASS, 0, 0, &startup_info, &process_information))
 			{
 				return false;
 			}
@@ -647,6 +714,66 @@ namespace helper{
 			return true;
 		}
 
+        inline DWORD get_process_by_name(const tstring& procname)
+        {
+            DWORD dwProcArray[2048], dwNeeded, cbMNeeded;
+            HMODULE hModuleArray[2048];
+            TCHAR szProcName[MAX_PATH] = {0};
+
+            if (!EnumProcesses(dwProcArray, sizeof(dwProcArray), &dwNeeded))
+            {
+                return 0;
+            }
+
+            DWORD dwProcCount = dwNeeded / sizeof(DWORD);
+            for (UINT i = 0; i < dwProcCount; i++)
+            {
+                HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ | SYNCHRONIZE, FALSE, dwProcArray[i]);
+                if (NULL == hProcess) continue;
+
+                EnumProcessModules(hProcess, hModuleArray, sizeof(hModuleArray), &cbMNeeded);
+                GetModuleFileNameEx(hProcess, hModuleArray[0], szProcName, sizeof(szProcName));
+
+                tstring curProName = szProcName;
+                if (curProName.length() <= 0) continue;
+
+                transform(curProName.begin(), curProName.end(), curProName.begin(), tolower);
+
+                tstring tmpName = procname;
+                transform(tmpName.begin(), tmpName.end(), tmpName.begin(), tolower);
+
+                if (tstring::npos != curProName.find(tmpName))
+                {
+                    return dwProcArray[i];
+                }
+
+                if (INVALID_HANDLE_VALUE != hProcess)
+                {
+                    CloseHandle(hProcess);
+                }
+            }
+
+            return 0;
+        }
+
+        inline unsigned long get_process_base_address(DWORD pid)
+        {
+            HANDLE hProcess=::OpenProcess(PROCESS_ALL_ACCESS,false,pid);//pid-->目标进程id
+
+            //调用目标进程的GetModuleHandle（NULL方法）
+            HANDLE hThread = ::CreateRemoteThread( hProcess, NULL, 0,
+                (LPTHREAD_START_ROUTINE) ::GetModuleHandle,NULL, 0, NULL );
+
+            ::WaitForSingleObject( hThread, INFINITE );
+
+            DWORD hLibModule;
+            // 获取GetModuleHandle(NULL)的返回值
+            ::GetExitCodeThread( hThread, &hLibModule );//hLibModule就是目标进程的起始地址.
+            CloseHandle(hThread);
+            CloseHandle(hProcess);
+
+            return hLibModule;
+        }
 	}
 
 	//注册表操作相关接口
@@ -674,8 +801,8 @@ namespace helper{
 		{
 			LPCTSTR lpstr_subkey,lpstr_name;
 #if defined(UNICODE) || defined(_UNICODE)
-			lpstr_subkey = (LPCTSTR)(charset::utf8_to_unicode(sub_key)).c_str();
-			lpstr_name = (LPCTSTR)(charset::utf8_to_unicode(name)).c_str();
+			lpstr_subkey = (LPCTSTR)(charset::string_to_wstring(sub_key)).c_str();
+			lpstr_name = (LPCTSTR)(charset::string_to_wstring(name)).c_str();
 #else
 			lpstr_subkey = (LPCTSTR)sub_key.c_str();
 			lpstr_name = (LPCTSTR)name.c_str();
@@ -688,8 +815,8 @@ namespace helper{
 		{
 			LPCTSTR lpstr_subkey,lpstr_name;
 #if defined(UNICODE) || defined(_UNICODE)
-			lpstr_subkey = (LPCTSTR)(charset::utf8_to_unicode(sub_key)).c_str();
-			lpstr_name = (LPCTSTR)(charset::utf8_to_unicode(name)).c_str();
+			lpstr_subkey = (LPCTSTR)(charset::string_to_wstring(sub_key)).c_str();
+			lpstr_name = (LPCTSTR)(charset::string_to_wstring(name)).c_str();
 #else
 			lpstr_subkey = (LPCTSTR)sub_key.c_str();
 			lpstr_name = (LPCTSTR)name.c_str();
@@ -702,5 +829,12 @@ namespace helper{
 		{
 
 		}
+        
+        inline size_t get_folder_size(const std::string& folder )
+        {
+
+        }
 	}
 }
+
+#endif // _HELPER_MY_WINHELPER_H
