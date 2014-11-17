@@ -5,8 +5,8 @@
 #include <Windows.h>
 #include <sstream>
 
-#define LOG(x) simpleoutputinfo(x)
-#define LOG2(x,y) simpleoutputinfo(x,y)
+#define LOG(x) simpleoutputinfo(__FILE__, __LINE__, x)
+#define LOG2(x,y) simpleoutputinfo(__FILE__, __LINE__, x,y)
 
 namespace simplelog_converter{
 	std::string inline wstring_to_string(std::wstring const& inWstr)//
@@ -34,26 +34,28 @@ namespace simplelog_converter{
 	}
 }
 
-void inline simpleoutputinfo(std::string str)
+void inline simpleoutputinfo(char* f, int l, std::string str)
 {
 #if defined DEBUG || defined _DEBUG
-	OutputDebugStringA(str.c_str());
-	std::cout<<str<<std::endl;
+    std::stringstream ss;
+    ss<<f<<"["<<l<<"] "<<str;
+	OutputDebugStringA(ss.str().c_str());
+	std::cout<<ss.str()<<std::endl;
 #endif
 }
 
 template <typename T>
-void simpleoutputinfo(T t)
+void simpleoutputinfo(char* f, int l, T t)
 {
 #if defined DEBUG || defined _DEBUG
 	std::stringstream ss;
 	ss<<t;
-	simpleoutputinfo(ss.str());
+	simpleoutputinfo(f, l, ss.str());
 #endif
 }
 
 template <typename T>
-void simpleoutputinfo(const std::string& prefix,T t)
+void simpleoutputinfo(char* f, int l, const std::string& prefix,T t)
 {
 #if defined DEBUG || defined _DEBUG
 	std::string str = prefix + " ";
@@ -67,7 +69,7 @@ void simpleoutputinfo(const std::string& prefix,T t)
 	ss<<t;
 	str += ss.str();
 #endif
-	simpleoutputinfo(str);
+	simpleoutputinfo(f, l, str);
 #endif
 }
 
