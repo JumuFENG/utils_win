@@ -552,7 +552,7 @@ namespace helper{
 			if (!::SetFileAttributes(_path.c_str(), _attr & ~FILE_ATTRIBUTE_READONLY))
 				return false;
 #endif
-			return (bool)delete_file(_path);
+			return TRUE == delete_file(_path);
 		}
 
 		inline BOOL remove_blank_directoy(std::string blk_dir)
@@ -585,7 +585,7 @@ namespace helper{
 			if (!::SetFileAttributes(blk_dir.c_str(), _attr & ~FILE_ATTRIBUTE_READONLY))
 				return false;
 #endif
-			return (bool)remove_blank_directoy(blk_dir);
+			return TRUE == remove_blank_directoy(blk_dir);
 		}
 
 		inline bool delete_folder(const std::string& _dir)
@@ -609,7 +609,7 @@ namespace helper{
 					}
 				} while (_findnext(n, &p) == 0);
 				_findclose(n);
-				return (bool)remove_blank_directoy(_dir);
+				return TRUE == remove_blank_directoy(_dir);
 			}
 		}
 
@@ -728,7 +728,7 @@ namespace helper{
             DWORD dwProcCount = dwNeeded / sizeof(DWORD);
             for (UINT i = 0; i < dwProcCount; i++)
             {
-                HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ | SYNCHRONIZE, FALSE, dwProcArray[i]);
+                HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, FALSE, dwProcArray[i]);
                 if (NULL == hProcess) continue;
 
                 EnumProcessModules(hProcess, hModuleArray, sizeof(hModuleArray), &cbMNeeded);
