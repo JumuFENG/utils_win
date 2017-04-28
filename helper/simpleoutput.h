@@ -55,7 +55,7 @@ void inline simpleoutputinfo(char* f, char* u, int l, std::string str)
 
 void inline simpleoutputinfo(char* f, char* u, int l, std::wstring wstr)
 {
-	simpleoutputinfo(simplelog_converter::wstring_to_string(wstr));
+	simpleoutputinfo(f, u, l, simplelog_converter::wstring_to_string(wstr));
 }
 
 #endif //SIMPLE_OUTPUT_LOGGER_H_
